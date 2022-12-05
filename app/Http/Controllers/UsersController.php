@@ -35,7 +35,7 @@ class UsersController extends Controller
         $followed[] = Auth::user()->id;
         $unfollowed  = User::whereNotIn('id', $followed)->pluck('id');
         $suggestedIds = \DB::table('followers')->whereIn('follower_id', $followed)->whereIn('leader_id', $unfollowed)->pluck('leader_id');
-        $suggested = count(User::whereIn('id', $suggestedIds)->take(6)->get()) ? User::whereIn('id', $suggestedIds)->take(6)->get(): User::whereNotIn('id', $followed)->take(6)->get();
+        $suggested = count(User::whereIn('id', $suggestedIds)->take(6)->get()) ? User::whereIn('id', $suggestedIds)->take(6)->get() : User::whereNotIn('id', $followed)->take(6)->get();
 
         $user = User::where('username', $username)->firstOrFail();
         return view('profile', compact('user', 'suggested'));
@@ -79,19 +79,19 @@ class UsersController extends Controller
 
         // Validation
 
-        if(
+        if (
             // If username and email are the same as before
             $request->input('user.username') === Auth::user()->username &&
             $request->input('user.email') === Auth::user()->email
-        ){
+        ) {
             $this->validate($request, [
                 'user.name' => 'required|string|max:255',
                 'user.bio' => 'nullable|string|max:160',
                 'user.location' => 'nullable|string|max:160'
             ]);
 
-        // If username is the same as before
-        }elseif($request->input('user.username') === Auth::user()->username) {
+            // If username is the same as before
+        } elseif ($request->input('user.username') === Auth::user()->username) {
             $this->validate($request, [
                 'user.name' => 'required|string|max:255',
                 'user.email' => 'required|string|email|max:255|unique:users',
@@ -100,7 +100,7 @@ class UsersController extends Controller
             ]);
 
             // If email is the same as before
-        }elseif($request->input('user.email') === Auth::user()->email){
+        } elseif ($request->input('user.email') === Auth::user()->email) {
             $this->validate($request, [
                 'user.name' => 'required|string|max:255',
                 'user.username' => 'required|string|max:255|alpha_dash|unique:users,username',
@@ -109,7 +109,7 @@ class UsersController extends Controller
             ]);
 
             // If email and username are different
-        }else{
+        } else {
             $this->validate($request, [
                 'user.name' => 'required|string|max:255',
                 'user.username' => 'required|string|max:255|alpha_dash|unique:users,username',
@@ -117,7 +117,6 @@ class UsersController extends Controller
                 'user.bio' => 'nullable|string|max:160',
                 'user.location' => 'nullable|string|max:160'
             ]);
-
         }
 
         // Storing in database
@@ -126,7 +125,7 @@ class UsersController extends Controller
         Auth::user()->email = $request->input('user.email');
         Auth::user()->bio = $request->input('user.bio');
         Auth::user()->location = $request->input('user.location');
-        if(Auth::user()->save()){
+        if (Auth::user()->save()) {
             return response()->json([
                 'status' => 'success'
             ], 200);
@@ -144,7 +143,7 @@ class UsersController extends Controller
         $this->validate($request, [
             'uniqueTo' => 'required|in:email,username'
         ]);
-        if($request->input('value') !== Auth::user()[$request->input('uniqueTo')]){
+        if ($request->input('value') !== Auth::user()[$request->input('uniqueTo')]) {
             $this->validate($request, [
                 'value' => 'required|unique:users,' . $request->input('uniqueTo')
             ]);
@@ -152,9 +151,9 @@ class UsersController extends Controller
     }
 
     /**
-    * Show the form for editing user data.
-    *
-    * @return \Illuminate\Http\Response
+     * Show the form for editing user data.
+     *
+     * @return \Illuminate\Http\Response
      */
     public function editPassword(Request $request)
     {
@@ -175,13 +174,12 @@ class UsersController extends Controller
             'new_password' => 'required|min:6|confirmed'
         ]);
 
-        if(Hash::check($request->input('current_password'), Auth::user()->password)){
+        if (Hash::check($request->input('current_password'), Auth::user()->password)) {
 
             // update the password
             Auth::user()->password = Hash::make($request->input('new_password'));
-            return Auth::user()->save() ? response()->json(['status' => 'success'], 200): [];
-
-        }else{
+            return Auth::user()->save() ? response()->json(['status' => 'success'], 200) : [];
+        } else {
             // else If password is incorrect return an error
             return response()->json([
                 'message' => 'The given data was invalid.',
@@ -190,7 +188,6 @@ class UsersController extends Controller
                 ]
             ], 422);
         }
-
     }
 
     /**
@@ -224,8 +221,8 @@ class UsersController extends Controller
     public function follow($id)
     {
         $user = User::findOrFail($id);
-        if($user->id !== Auth::user()->id){
-            if($user->followers()->sync(Auth::user()->id, false)){
+        if ($user->id !== Auth::user()->id) {
+            if ($user->followers()->sync(Auth::user()->id, false)) {
                 // Send a notification
                 event(new NewFollow($user));
                 return response()->json([
@@ -244,8 +241,8 @@ class UsersController extends Controller
     public function unfollow($id)
     {
         $user = User::findOrFail($id);
-        if($user->id !== Auth::user()->id){
-            if($user->followers()->detach(Auth::user()->id)){
+        if ($user->id !== Auth::user()->id) {
+            if ($user->followers()->detach(Auth::user()->id)) {
                 // Remove the notification
                 $notification = new \App\Notification;
                 $notification->where('user_id', $user->id)->where('type', 3)->delete();
@@ -262,114 +259,113 @@ class UsersController extends Controller
      * @param  Request  $request
      * @return \Illuminate\Http\Response
      */
-     public function photo(Request $request)
-     {
-         $this->validate($request, [
-             'image' => 'required|image|mimes:jpg,jpeg,png|max:5000'
-         ]);
+    public function photo(Request $request)
+    {
+        $this->validate($request, [
+            'image' => 'required'
+        ]);
 
-         if(!is_null(Auth::user()->photo)){
-             unlink(storage_path() . '/app/public/photos/' . Auth::user()->photo);
-         }
-         $ext = $request->file('image')->getClientOriginalExtension();
-         $name = md5(uniqid()) . now()->timestamp . '.' . $ext;
-         $request->file('image')->storeAs('public/photos', $name);
-         Auth::user()->photo = $name;
-         if(Auth::user()->save()){
-             return response()->json([
-                 'status' => 'success',
-                 'image' => $name
-             ], 200);
-         }
-     }
+        if (!is_null(Auth::user()->photo)) {
+            unlink(storage_path() . '/app/public/photos/' . Auth::user()->photo);
+        }
+        $ext = $request->file('image')->getClientOriginalExtension();
+        $name = md5(uniqid()) . now()->timestamp . '.' . $ext;
+        $request->file('image')->storeAs('public/photos', $name);
+        Auth::user()->photo = $name;
+        if (Auth::user()->save()) {
+            return response()->json([
+                'status' => 'success',
+                'image' => $name
+            ], 200);
+        }
+    }
 
-     /**
-      * Update cover photo;
-      *
-      * @param  Request  $request
-      * @return \Illuminate\Http\Response
-      */
-      public function cover(Request $request)
-      {
-          $this->validate($request, [
-              'image' => 'required|image|mimes:jpg,jpeg,png|max:5000'
-          ]);
+    /**
+     * Update cover photo;
+     *
+     * @param  Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function cover(Request $request)
+    {
+        $this->validate($request, [
+            'image' => 'required'
+        ]);
 
-          if(!is_null(Auth::user()->cover)){
-              unlink(storage_path() . '/app/public/covers/' . Auth::user()->cover);
-          }
-          $ext = $request->file('image')->getClientOriginalExtension();
-          $name = md5(uniqid()) . now()->timestamp . '.' . $ext;
-          $request->file('image')->storeAs('public/covers', $name);
-          Auth::user()->cover = $name;
-          if(Auth::user()->save()){
-              return response()->json([
-                  'status' => 'success',
-                  'image' => $name
-              ], 200);
-          }
-      }
-
-      /**
-       * Remove profile photo;
-       *
-       * @return \Illuminate\Http\Response
-       */
-       public function removePhoto()
-       {
-           unlink(storage_path() . '/app/public/photos/' . Auth::user()->photo);
-           Auth::user()->photo = null;
-           if(Auth::user()->save()){
-               return response()->json([
-                   'status' => 'success',
-               ], 200);
-           }
-       }
-
-       /**
-        * Remove profile photo;
-        *
-        * @return \Illuminate\Http\Response
-        */
-        public function removeCover()
-        {
+        if (!is_null(Auth::user()->cover)) {
             unlink(storage_path() . '/app/public/covers/' . Auth::user()->cover);
-            Auth::user()->cover = null;
-            if(Auth::user()->save()){
-                return response()->json([
-                    'status' => 'success',
-                ], 200);
-            }
         }
-
-        /**
-         * Search for a specified resource.
-         *
-         * @param  \Illuminate\Http\Request  $request
-         * @return \Illuminate\Http\Response
-         */
-        public function search(Request $request)
-        {
-            $value = $request->get('search');
-            Session::put('search', $value);
-            $results = User::where('name', 'LIKE', "%{$value}%")->orderBy('id', 'DESC')->take(28)->with('tweets', 'followers')->get();
-            return view('search', compact('results'));
+        $ext = $request->file('image')->getClientOriginalExtension();
+        $name = md5(uniqid()) . now()->timestamp . '.' . $ext;
+        $request->file('image')->storeAs('public/covers', $name);
+        Auth::user()->cover = $name;
+        if (Auth::user()->save()) {
+            return response()->json([
+                'status' => 'success',
+                'image' => $name
+            ], 200);
         }
+    }
 
-        /**
-         * Get more search results.
-         *
-         * @param  \Illuminate\Http\Request  $request
-         * @return \Illuminate\Http\Response
-         */
-        public function searchMore(Request $request)
-        {
-            $this->validate($request, [
-                'id' => 'required|integer|exists:users,id'
-            ]);
-            $value = Session::get('search');
-            $results = User::where('name', 'LIKE', "%{$value}%")->where('id', '<', $request->input('id'))->orderBy('id', 'DESC')->take(28)->with('tweets', 'followers')->get();
-            return $results;
+    /**
+     * Remove profile photo;
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function removePhoto()
+    {
+        unlink(storage_path() . '/app/public/photos/' . Auth::user()->photo);
+        Auth::user()->photo = null;
+        if (Auth::user()->save()) {
+            return response()->json([
+                'status' => 'success',
+            ], 200);
         }
+    }
 
+    /**
+     * Remove profile photo;
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function removeCover()
+    {
+        unlink(storage_path() . '/app/public/covers/' . Auth::user()->cover);
+        Auth::user()->cover = null;
+        if (Auth::user()->save()) {
+            return response()->json([
+                'status' => 'success',
+            ], 200);
+        }
+    }
+
+    /**
+     * Search for a specified resource.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function search(Request $request)
+    {
+        $value = $request->get('search');
+        Session::put('search', $value);
+        $results = User::where('name', 'LIKE', "%{$value}%")->orderBy('id', 'DESC')->take(28)->with('tweets', 'followers')->get();
+        return view('search', compact('results'));
+    }
+
+    /**
+     * Get more search results.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function searchMore(Request $request)
+    {
+        $this->validate($request, [
+            'id' => 'required|integer|exists:users,id'
+        ]);
+        $value = Session::get('search');
+        $results = User::where('name', 'LIKE', "%{$value}%")->where('id', '<', $request->input('id'))->orderBy('id', 'DESC')->take(28)->with('tweets', 'followers')->get();
+        return $results;
+    }
 }
